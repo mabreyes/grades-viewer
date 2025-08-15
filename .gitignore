@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+/dist/
+/.vite/
+
+# TypeScript
+/tsconfig.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Coverage
+/coverage/
+
+# OS
+.DS_Store
+
+# IDEs/Editors
+.idea/
+.vscode/
+
+# Env files (do not commit secrets)
+.env
+.env.*
+
+# Misc
+*.local
+*.swp
+*.swo
+
+*.csv
