@@ -13,6 +13,11 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContentText from '@mui/material/DialogContentText';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchIcon from '@mui/icons-material/Search';
@@ -21,6 +26,8 @@ import DoneIcon from '@mui/icons-material/Done';
 import Brightness6Icon from '@mui/icons-material/Brightness6';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import SecurityIcon from '@mui/icons-material/Security';
+import WarningIcon from '@mui/icons-material/Warning';
 import { CsvRow, PointsPossibleMap, StudentIndexItem } from './types';
 
 type LoadState =
@@ -89,6 +96,14 @@ export default function App(): JSX.Element {
   );
   const [collapsed, setCollapsed] = useState<boolean>(() =>
     readBooleanPreference('collapsed', false)
+  );
+  const [consultationMode, setConsultationMode] = useState<boolean>(() =>
+    readBooleanPreference('consultationMode', false)
+  );
+  const [pendingStudentKey, setPendingStudentKey] = useState<string | null>(null);
+  const [consultationStartTime, setConsultationStartTime] = useState<number | null>(null);
+  const [consultationShowScores, setConsultationShowScores] = useState<boolean>(() =>
+    readBooleanPreference('consultationShowScores', false)
   );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -310,10 +325,167 @@ export default function App(): JSX.Element {
     return keys;
   }, [state]);
 
+  // Handle student switching with confirmation in consultation mode
+  const handleStudentSwitch = (newKey: string, sisId: string) => {
+    // Always default to hidden scores when switching students
+    try {
+      localStorage.setItem('showScores', 'false');
+      localStorage.setItem('consultationShowScores', 'false');
+    } catch {}
+    setConsultationShowScores(false);
+    if (consultationMode && activeKey && activeKey !== newKey) {
+      setPendingStudentKey(newKey);
+    } else {
+      setActiveKey(newKey);
+      if (sisId) navigate(`/student/${encodeURIComponent(sisId)}`);
+    }
+  };
+
+  const confirmStudentSwitch = () => {
+    if (pendingStudentKey) {
+      setActiveKey(pendingStudentKey);
+      const targetStudent = index.find((s) => s.key === pendingStudentKey);
+      if (targetStudent) {
+        const sisId = String(
+          state.status === 'loaded'
+            ? (state.rows[targetStudent.rowIndex]['SIS User ID'] ??
+                state.rows[targetStudent.rowIndex].ID ??
+                '')
+            : ''
+        ).trim();
+        if (sisId) navigate(`/student/${encodeURIComponent(sisId)}`);
+      }
+      setPendingStudentKey(null);
+    }
+  };
+
+  const cancelStudentSwitch = () => {
+    setPendingStudentKey(null);
+  };
+
+  // Keyboard navigation protection
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (consultationMode) {
+        // Block common navigation shortcuts
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          (e.key === 'r' || // Refresh
+            e.key === 'R' ||
+            e.key === 'l' || // Location bar
+            e.key === 'L' ||
+            e.key === 'h' || // History
+            e.key === 'H' ||
+            e.key === 't' || // New tab
+            e.key === 'T' ||
+            e.key === 'w' || // Close tab
+            e.key === 'W')
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        // Block F5 refresh
+        if (e.key === 'F5') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        // Block Alt+Tab (attempt)
+        if (e.altKey && e.key === 'Tab') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [consultationMode]);
+
+  // Browser navigation protection
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (consultationMode) {
+        e.preventDefault();
+        e.returnValue = 'You are in consultation mode. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (consultationMode) {
+        const confirmed = window.confirm(
+          'You are in consultation mode. Navigating away will exit consultation mode. Continue?'
+        );
+        if (!confirmed) {
+          e.preventDefault();
+          // Push current state back
+          window.history.pushState(null, '', window.location.href);
+        } else {
+          setConsultationMode(false);
+          try {
+            localStorage.setItem('consultationMode', 'false');
+          } catch {}
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [consultationMode]);
+
+  // Track consultation session
+  useEffect(() => {
+    if (consultationMode && !consultationStartTime) {
+      setConsultationStartTime(Date.now());
+    } else if (!consultationMode && consultationStartTime) {
+      setConsultationStartTime(null);
+    }
+  }, [consultationMode, consultationStartTime]);
+
+  // Disable context menu in consultation mode
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      if (consultationMode) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const handleSelectStart = (e: Event) => {
+      if (consultationMode) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    if (consultationMode) {
+      document.addEventListener('contextmenu', handleContextMenu);
+      document.addEventListener('selectstart', handleSelectStart);
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('selectstart', handleSelectStart);
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+    };
+  }, [consultationMode]);
+
   return (
     <ThemeProvider theme={muiTheme}>
       <CssBaseline />
-      <div className={`app ${collapsed ? 'collapsed' : ''}`}>
+      <div
+        className={`app ${collapsed ? 'collapsed' : ''} ${consultationMode ? 'consultation-mode' : ''}`}
+      >
         <aside className="sidebar">
           <div className="sidebar-header">
             <h1 className="sidebar-title hide-when-collapsed">
@@ -342,11 +514,14 @@ export default function App(): JSX.Element {
             <TextField
               inputRef={searchInputRef}
               type="search"
-              placeholder="Search students..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                consultationMode ? 'Search disabled in consultation mode' : 'Search students...'
+              }
+              value={consultationMode ? '' : query}
+              onChange={(e) => !consultationMode && setQuery(e.target.value)}
               size="small"
               fullWidth
+              disabled={consultationMode}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -394,6 +569,58 @@ export default function App(): JSX.Element {
                 }
               >
                 {showStatus ? 'Showing Status' : 'Show Status'}
+              </Button>
+              <Button
+                size="small"
+                variant={consultationMode ? 'contained' : 'outlined'}
+                startIcon={<SecurityIcon />}
+                color={consultationMode ? 'warning' : 'inherit'}
+                onClick={() => {
+                  if (consultationMode) {
+                    // Confirm exit
+                    const confirmed = window.confirm(
+                      'Exit consultation mode? This will re-enable search and navigation.'
+                    );
+                    if (confirmed) {
+                      setConsultationMode(false);
+                      setQuery(''); // Clear any search
+                      try {
+                        localStorage.setItem('consultationMode', 'false');
+                      } catch {}
+                    }
+                  } else {
+                    // Confirm enter with warning
+                    const confirmed = window.confirm(
+                      'Enable consultation mode?\n\n' +
+                        'This will:\n' +
+                        '• Require confirmation to switch students\n' +
+                        '• Disable search functionality\n' +
+                        '• Block navigation shortcuts\n' +
+                        '• Warn before leaving the page\n\n' +
+                        'Use this during student consultations for privacy protection.'
+                    );
+                    if (confirmed) {
+                      setConsultationMode(true);
+                      setQuery(''); // Clear search
+                      // Auto-hide scores for privacy when entering consultation mode
+                      const autoHide = window.confirm(
+                        'Hide all scores automatically for privacy protection?\n\n' +
+                          'This is recommended for student consultations. You can show them manually when needed.'
+                      );
+                      if (autoHide) {
+                        setConsultationShowScores(false);
+                        try {
+                          localStorage.setItem('consultationShowScores', 'false');
+                        } catch {}
+                      }
+                      try {
+                        localStorage.setItem('consultationMode', 'true');
+                      } catch {}
+                    }
+                  }
+                }}
+              >
+                {consultationMode ? 'Exit Consultation' : 'Consultation Mode'}
               </Button>
             </div>
           </div>
@@ -445,13 +672,23 @@ export default function App(): JSX.Element {
             </IconButton>
           </div>
           <div className="student-list">
-            {filteredIndex.length > 0 && (
+            {!consultationMode && filteredIndex.length > 0 && (
               <div className="student-count hide-when-collapsed">
                 {filteredIndex.length} {filteredIndex.length === 1 ? 'student' : 'students'}
                 {query && ` matching "${query}"`}
               </div>
             )}
-            {filteredIndex.map((s) => {
+            {consultationMode && (
+              <div className="consultation-warning hide-when-collapsed">
+                <SecurityIcon fontSize="small" />
+                <div>
+                  <strong>Consultation Mode Active</strong>
+                  <br />
+                  <small>Click any student to switch with confirmation</small>
+                </div>
+              </div>
+            )}
+            {(consultationMode ? index : filteredIndex).map((s) => {
               const r = state.status === 'loaded' ? state.rows[s.rowIndex] : undefined;
               const fg = r ? Number(r['Unposted Final Grade'] ?? r['Final Grade']) : NaN;
               const isFail = Number.isFinite(fg) ? fg < 1.0 : false;
@@ -464,13 +701,12 @@ export default function App(): JSX.Element {
                   key={s.key}
                   className={`student-item ${collapsed ? 'compact' : ''} ${activeKey === s.key ? 'active' : ''}`}
                   onClick={() => {
-                    setActiveKey(s.key);
                     const sis = String(
                       state.status === 'loaded'
                         ? (state.rows[s.rowIndex]['SIS User ID'] ?? state.rows[s.rowIndex].ID ?? '')
                         : ''
                     ).trim();
-                    if (sis) navigate(`/student/${encodeURIComponent(sis)}`);
+                    handleStudentSwitch(s.key, sis);
                   }}
                 >
                   {collapsed ? (
@@ -501,6 +737,12 @@ export default function App(): JSX.Element {
           </div>
         </aside>
         <main className="content">
+          {consultationMode && (
+            <div className="consultation-mode-indicator">
+              <SecurityIcon fontSize="small" />
+              CONSULTATION MODE ACTIVE
+            </div>
+          )}
           {state.status === 'loading' && (
             <div style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
               <CircularProgress />
@@ -512,10 +754,45 @@ export default function App(): JSX.Element {
               record={activeStudent}
               assignmentKeys={assignmentKeys}
               points={state.points}
+              consultationMode={consultationMode}
+              consultationShowScores={consultationShowScores}
+              setConsultationShowScores={setConsultationShowScores}
             />
           )}
         </main>
       </div>
+
+      {/* Student Switch Confirmation Dialog */}
+      <Dialog
+        open={!!pendingStudentKey}
+        onClose={cancelStudentSwitch}
+        aria-labelledby="student-switch-dialog-title"
+        aria-describedby="student-switch-dialog-description"
+      >
+        <DialogTitle id="student-switch-dialog-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WarningIcon color="warning" />
+            Switch Student?
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="student-switch-dialog-description">
+            You are about to switch to a different student's grades. This will hide the current
+            student's information and show the new student's data.
+            <br />
+            <br />
+            <strong>Are you sure you want to continue?</strong>
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelStudentSwitch} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={confirmStudentSwitch} color="primary" variant="contained" autoFocus>
+            Switch Student
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ThemeProvider>
   );
 }
@@ -524,10 +801,16 @@ function StudentDetail({
   record,
   assignmentKeys,
   points,
+  consultationMode,
+  consultationShowScores,
+  setConsultationShowScores,
 }: {
   record: CsvRow;
   assignmentKeys: string[];
   points: PointsPossibleMap;
+  consultationMode: boolean;
+  consultationShowScores: boolean;
+  setConsultationShowScores: (value: boolean) => void;
 }): JSX.Element {
   const lastName = String(record.LastName ?? '').trim();
   const firstName = String(record.FirstName ?? '').trim();
@@ -536,7 +819,10 @@ function StudentDetail({
   const [showScores, setShowScores] = useState<boolean>(() =>
     readBooleanPreference('showScores', false)
   );
-  const concealClass = showScores ? '' : 'conceal';
+
+  // In consultation mode, use separate show/hide state
+  const effectiveShowScores = consultationMode ? consultationShowScores : showScores;
+  const concealClass = effectiveShowScores ? '' : 'conceal';
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   // Formatting helpers
@@ -806,18 +1092,28 @@ function StudentDetail({
             </div>
             {email && <div className="student-email">{email}</div>}
             <button
-              className="btn btn-sm"
-              onClick={() =>
-                setShowScores((s) => {
-                  const v = !s;
+              className={`btn btn-sm ${consultationMode ? 'consultation-btn' : ''}`}
+              onClick={() => {
+                if (consultationMode) {
+                  const newValue = !consultationShowScores;
+                  setConsultationShowScores(newValue);
                   try {
-                    localStorage.setItem('showScores', String(v));
+                    localStorage.setItem('consultationShowScores', String(newValue));
                   } catch {}
-                  return v;
-                })
-              }
+                } else {
+                  setShowScores((s) => {
+                    const v = !s;
+                    try {
+                      localStorage.setItem('showScores', String(v));
+                    } catch {}
+                    return v;
+                  });
+                }
+              }}
             >
-              {showScores ? 'Hide scores' : 'Show scores'}
+              {consultationMode && <SecurityIcon fontSize="small" style={{ marginRight: 4 }} />}
+              {effectiveShowScores ? 'Hide scores' : 'Show scores'}
+              {consultationMode && ' (Consultation)'}
             </button>
           </div>
           <div className="meta">
