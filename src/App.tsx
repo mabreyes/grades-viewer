@@ -686,7 +686,9 @@ export default function App(): JSX.Element {
                   ) : (
                     <>
                       <div className="topline">
-                        <div>{s.displayName}</div>
+                        <div>
+                          {consultationMode && !consultationShowScores ? ln : s.displayName}
+                        </div>
                         {showStatus &&
                           Number.isFinite(fg) &&
                           (isFail ? (
@@ -695,9 +697,11 @@ export default function App(): JSX.Element {
                             <Chip label="PASSED" color="success" variant="outlined" size="small" />
                           ))}
                       </div>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {sis}
-                      </div>
+                      {!(consultationMode && !consultationShowScores) && (
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {sis}
+                        </div>
+                      )}
                     </>
                   )}
                 </button>
@@ -1233,7 +1237,7 @@ function StudentDetail({
         <div className="detail-left">
           <div className="student-name-section">
             <div className="name-and-status">
-              <h1>{fullName}</h1>
+              <h1>{effectiveShowScores ? fullName : toTitleCase(lastName)}</h1>
               {finalGrade && (
                 <div
                   className={`pass-fail-status ${Number(finalGrade) >= 1.0 ? 'passed' : 'failed'} ${concealClass}`}
@@ -1242,7 +1246,7 @@ function StudentDetail({
                 </div>
               )}
             </div>
-            {email && <div className="student-email">{email}</div>}
+            {email && effectiveShowScores && <div className="student-email">{email}</div>}
             <button
               className={`btn btn-sm ${consultationMode ? 'consultation-btn' : ''}`}
               onClick={() => {
@@ -1269,10 +1273,12 @@ function StudentDetail({
             </button>
           </div>
           <div className="meta">
-            <div className="item">
-              <div className="label">SIS User ID</div>
-              <div className="value">{String(record['SIS User ID'] ?? record.ID ?? '')}</div>
-            </div>
+            {effectiveShowScores && (
+              <div className="item">
+                <div className="label">SIS User ID</div>
+                <div className="value">{String(record['SIS User ID'] ?? record.ID ?? '')}</div>
+              </div>
+            )}
             <div className="item">
               <div className="label">Section</div>
               <div className="value">{String(record.Section ?? '')}</div>
