@@ -155,7 +155,7 @@ export default function App(): JSX.Element {
         shape: { borderRadius: 10 },
         typography: {
           fontFamily:
-            'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial',
+            '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         },
       }),
     [muiMode]
@@ -741,7 +741,7 @@ export default function App(): JSX.Element {
         aria-describedby="exit-consultation-dialog-description"
       >
         <DialogTitle id="exit-consultation-dialog-title">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
             <SecurityIcon color="warning" />
             Exit Consultation Mode?
           </div>
@@ -784,7 +784,7 @@ export default function App(): JSX.Element {
         aria-describedby="enter-consultation-dialog-description"
       >
         <DialogTitle id="enter-consultation-dialog-title">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
             <SecurityIcon color="warning" />
             Enable Consultation Mode?
           </div>
@@ -838,7 +838,7 @@ export default function App(): JSX.Element {
         aria-describedby="auto-hide-dialog-description"
       >
         <DialogTitle id="auto-hide-dialog-title">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
             <VisibilityOffIcon color="info" />
             Hide Scores for Privacy?
           </div>
@@ -880,7 +880,7 @@ export default function App(): JSX.Element {
         aria-describedby="nav-warning-dialog-description"
       >
         <DialogTitle id="nav-warning-dialog-title">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
             <WarningIcon color="warning" />
             Leave Consultation Mode?
           </div>
@@ -928,7 +928,7 @@ export default function App(): JSX.Element {
         aria-describedby="student-switch-dialog-description"
       >
         <DialogTitle id="student-switch-dialog-title">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
             <WarningIcon color="warning" />
             Switch Student?
           </div>
@@ -1367,7 +1367,7 @@ function StudentDetail({
         return (
           <div key={groupId} style={{ marginBottom: 20 }}>
             <button
-              className="category-header-btn"
+              className={`category-header-btn ${open ? 'expanded' : ''}`}
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? 'Collapse' : 'Expand'}
               style={{
@@ -1379,13 +1379,7 @@ function StudentDetail({
                 <div className="expand-icon">
                   {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                 </div>
-                <h2 style={{ margin: 0, fontSize: 16 }}>
-                  <span
-                    className="cat-dot"
-                    style={{ backgroundColor: categoryColorById[groupId] ?? 'var(--muted)' }}
-                  />
-                  {label}
-                </h2>
+                <h2 style={{ margin: 0, fontSize: 16 }}>{label}</h2>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {totals && (

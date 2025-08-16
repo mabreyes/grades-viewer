@@ -75,15 +75,8 @@ body,
 body {
   margin: 0;
   font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    Helvetica,
-    Arial,
-    'Apple Color Emoji',
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', Inter, ui-sans-serif,
+    system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji',
     'Segoe UI Emoji';
   background: var(--bg);
   color: var(--text);
@@ -500,9 +493,11 @@ select:focus {
 
 .grid {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 0 0 12px 12px;
+  border-top: none;
   overflow: hidden;
   background: var(--panel);
+  margin-top: -1px; /* Ensure seamless connection */
 }
 
 table {
@@ -605,7 +600,14 @@ tbody tr:hover {
   transition:
     border-color 120ms ease,
     background-color 120ms ease,
-    box-shadow 120ms ease;
+    box-shadow 120ms ease,
+    border-radius 120ms ease;
+}
+
+/* When expanded, remove bottom border radius */
+.category-header-btn.expanded {
+  border-radius: 12px 12px 0 0;
+  border-bottom: none;
 }
 
 .category-header-btn:hover {
@@ -613,10 +615,18 @@ tbody tr:hover {
   filter: brightness(1.05);
 }
 
+.category-header-btn.expanded:hover {
+  border-bottom: none; /* Maintain no bottom border on hover when expanded */
+}
+
 .category-header-btn:focus-visible {
   outline: none;
   box-shadow: var(--ring);
   border-color: var(--accent);
+}
+
+.category-header-btn.expanded:focus-visible {
+  border-bottom: none; /* Maintain no bottom border on focus when expanded */
 }
 
 .expand-icon {
