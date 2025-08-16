@@ -1365,7 +1365,7 @@ function StudentDetail({
           });
         };
         return (
-          <div key={groupId} style={{ marginBottom: 20 }}>
+          <div key={groupId} className="category-group" style={{ marginBottom: 20 }}>
             <button
               className={`category-header-btn ${open ? 'expanded' : ''}`}
               onClick={() => setOpen((v) => !v)}

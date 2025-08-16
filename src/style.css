@@ -480,6 +480,7 @@ select:focus {
   overflow: hidden;
   background: var(--panel);
   margin-top: -1px; /* Ensure seamless connection */
+  transition: border-color 120ms ease;
 }
 
 table {
@@ -609,6 +610,19 @@ tbody tr:hover {
 
 .category-header-btn.expanded:focus-visible {
   border-bottom: none; /* Maintain no bottom border on focus when expanded */
+}
+
+/* Apply accent border to grid when header is hovered or focused */
+.category-header-btn:hover ~ .grid,
+.category-header-btn:focus-visible ~ .grid,
+.category-header-btn:focus-within ~ .grid {
+  border-color: var(--accent);
+}
+
+/* Modern browsers: use :has() for better control */
+.category-group:has(.category-header-btn:hover) .grid,
+.category-group:has(.category-header-btn:focus-visible) .grid {
+  border-color: var(--accent);
 }
 
 .expand-icon {
