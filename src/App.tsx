@@ -64,6 +64,22 @@ function toNumber(value: unknown): number | null {
   return isNumeric(value) ? Number(String(value).trim()) : null;
 }
 
+function toTitleCase(str: string): string {
+  return str.replace(/\w\S*/g, (txt) => {
+    const lower = txt.toLowerCase();
+    // Handle Roman numerals
+    if (/^(i{1,3}|iv|v|vi{0,3}|ix|x|xi{0,3}|xiv|xv|xvi{0,3}|xix|xx)$/i.test(lower)) {
+      return txt.toUpperCase();
+    }
+    // Handle common abbreviations that should be uppercase
+    if (/^(jr|sr|ii|iii|iv|v|vi|vii|viii|ix|x)$/i.test(lower)) {
+      return txt.toUpperCase();
+    }
+    // Regular title case
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+}
+
 export default function App(): JSX.Element {
   const [state, setState] = useState<LoadState>({ status: 'idle' });
   const [query, setQuery] = useState('');
@@ -300,11 +316,14 @@ export default function App(): JSX.Element {
       <div className={`app ${collapsed ? 'collapsed' : ''}`}>
         <aside className="sidebar">
           <div className="sidebar-header">
-            <h1 className="hide-when-collapsed">CSSECDV Grades</h1>
+            <h1 className="sidebar-title hide-when-collapsed">
+              CSSECDV S19 Term 3 AY 2024-2025 Final Grades
+            </h1>
             <IconButton
               size="small"
               color="inherit"
               aria-label="Toggle collapse"
+              className="sidebar-collapse-btn"
               onClick={() =>
                 setCollapsed((v) => {
                   const n = !v;
@@ -318,9 +337,29 @@ export default function App(): JSX.Element {
               {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
             </IconButton>
           </div>
-          <div className="hide-when-collapsed">
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <FormControl size="small" fullWidth>
+
+          <div className="sidebar-section hide-when-collapsed">
+            <TextField
+              inputRef={searchInputRef}
+              type="search"
+              placeholder="Search students..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </div>
+
+          <div className="sidebar-section hide-when-collapsed">
+            <div className="sidebar-actions">
+              <FormControl size="small" style={{ flex: 1 }}>
                 <InputLabel id="theme-mode-label">Theme</InputLabel>
                 <Select
                   labelId="theme-mode-label"
@@ -340,25 +379,26 @@ export default function App(): JSX.Element {
                   <MenuItem value="dark">Dark</MenuItem>
                 </Select>
               </FormControl>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={showStatus ? <DoneIcon /> : <HelpOutlineIcon />}
+                onClick={() =>
+                  setShowStatus((s) => {
+                    const v = !s;
+                    try {
+                      localStorage.setItem('showStatus', String(v));
+                    } catch {}
+                    return v;
+                  })
+                }
+              >
+                {showStatus ? 'Showing Status' : 'Show Status'}
+              </Button>
             </div>
-            <TextField
-              inputRef={searchInputRef}
-              type="search"
-              placeholder="Search by name or ID..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              size="small"
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-            />
           </div>
-          <div className="show-when-collapsed" style={{ marginBottom: 8 }}>
+
+          <div className="show-when-collapsed sidebar-collapsed-actions">
             <IconButton
               size="small"
               aria-label="Search"
@@ -370,64 +410,47 @@ export default function App(): JSX.Element {
             >
               <SearchIcon />
             </IconButton>
-            <div style={{ marginTop: 8 }}>
-              <IconButton
-                size="small"
-                aria-label="Toggle Theme"
-                title="Toggle Theme"
-                onClick={() => {
-                  setTheme((prev) => {
-                    const order: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
-                    const next = order[(order.indexOf(prev) + 1) % order.length];
-                    try {
-                      localStorage.setItem('theme', next);
-                    } catch {}
-                    return next;
-                  });
-                }}
-              >
-                <Brightness6Icon />
-              </IconButton>
-            </div>
-          </div>
-          <div className="sidebar-controls">
-            <div className="hide-when-collapsed">
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() =>
-                  setShowStatus((s) => {
-                    const v = !s;
-                    try {
-                      localStorage.setItem('showStatus', String(v));
-                    } catch {}
-                    return v;
-                  })
-                }
-              >
-                {showStatus ? 'Hide Passed/Failed' : 'Show Passed/Failed'}
-              </Button>
-            </div>
-            <div className="show-when-collapsed">
-              <IconButton
-                size="small"
-                aria-label="Toggle Passed/Failed"
-                title="Toggle Passed/Failed"
-                onClick={() =>
-                  setShowStatus((s) => {
-                    const v = !s;
-                    try {
-                      localStorage.setItem('showStatus', String(v));
-                    } catch {}
-                    return v;
-                  })
-                }
-              >
-                {showStatus ? <DoneIcon /> : <HelpOutlineIcon />}
-              </IconButton>
-            </div>
+            <IconButton
+              size="small"
+              aria-label="Toggle Theme"
+              title="Toggle Theme"
+              onClick={() => {
+                setTheme((prev) => {
+                  const order: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
+                  const next = order[(order.indexOf(prev) + 1) % order.length];
+                  try {
+                    localStorage.setItem('theme', next);
+                  } catch {}
+                  return next;
+                });
+              }}
+            >
+              <Brightness6Icon />
+            </IconButton>
+            <IconButton
+              size="small"
+              aria-label="Toggle Passed/Failed"
+              title="Toggle Passed/Failed"
+              onClick={() =>
+                setShowStatus((s) => {
+                  const v = !s;
+                  try {
+                    localStorage.setItem('showStatus', String(v));
+                  } catch {}
+                  return v;
+                })
+              }
+            >
+              {showStatus ? <DoneIcon /> : <HelpOutlineIcon />}
+            </IconButton>
           </div>
           <div className="student-list">
+            {filteredIndex.length > 0 && (
+              <div className="student-count hide-when-collapsed">
+                {filteredIndex.length} {filteredIndex.length === 1 ? 'student' : 'students'}
+                {query && ` matching "${query}"`}
+              </div>
+            )}
             {filteredIndex.map((s) => {
               const r = state.status === 'loaded' ? state.rows[s.rowIndex] : undefined;
               const fg = r ? Number(r['Unposted Final Grade'] ?? r['Final Grade']) : NaN;
@@ -451,7 +474,9 @@ export default function App(): JSX.Element {
                   }}
                 >
                   {collapsed ? (
-                    <div className="avatar">{initials || '??'}</div>
+                    <div className="avatar" title={s.displayName}>
+                      {initials || '??'}
+                    </div>
                   ) : (
                     <>
                       <div className="topline">
@@ -459,9 +484,9 @@ export default function App(): JSX.Element {
                         {showStatus &&
                           Number.isFinite(fg) &&
                           (isFail ? (
-                            <Chip label="Failed" color="error" variant="outlined" size="small" />
+                            <Chip label="FAILED" color="error" variant="outlined" size="small" />
                           ) : (
-                            <Chip label="Passed" color="success" variant="outlined" size="small" />
+                            <Chip label="PASSED" color="success" variant="outlined" size="small" />
                           ))}
                       </div>
                       <div className="muted" style={{ fontSize: 12 }}>
@@ -504,12 +529,22 @@ function StudentDetail({
   assignmentKeys: string[];
   points: PointsPossibleMap;
 }): JSX.Element {
-  const fullName = `${String(record.LastName ?? '').trim()}, ${String(record.FirstName ?? '').trim()}`;
+  const lastName = String(record.LastName ?? '').trim();
+  const firstName = String(record.FirstName ?? '').trim();
+  const fullName = `${toTitleCase(lastName)}, ${toTitleCase(firstName)}`;
+  const email = String(record['SIS Login ID'] ?? '').trim();
   const [showScores, setShowScores] = useState<boolean>(() =>
     readBooleanPreference('showScores', false)
   );
   const concealClass = showScores ? '' : 'conceal';
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Formatting helpers
+  const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+  const formatUpTo2 = (n: number): string =>
+    round2(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 0 });
+  const format2 = (n: number): string =>
+    round2(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
   // Attempt to pick some summary fields if present
   const finalScore = record['Unposted Final Score'] ?? record['Final Score'];
@@ -553,6 +588,18 @@ function StudentDetail({
         ],
       },
     ],
+    []
+  );
+
+  // Stable colors per category id
+  const categoryColorById: Record<string, string> = useMemo(
+    () => ({
+      case_study: 'var(--cat-case-study)',
+      exams: 'var(--cat-exams)',
+      practical_exercises: 'var(--cat-practical)',
+      class_activities: 'var(--cat-activities)',
+      other: 'var(--muted)',
+    }),
     []
   );
 
@@ -658,26 +705,108 @@ function StudentDetail({
     } as const;
   }, [assignmentKeys, record, points, groupConfigs]);
 
-  // Contributions panel: derive per-category contribution strictly from CSV Final Score
+  // Contributions panel: use per-category totals from CSV when available
   const contributionRows = useMemo(() => {
+    const categoryColumnsById: Record<string, string[]> = {
+      case_study: [
+        'Case Study Final Score',
+        'Case Study Unposted Final Score',
+        'Case Study Current Score',
+        'Case Study Unposted Current Score',
+      ],
+      exams: [
+        'Exams Final Score',
+        'Exams Unposted Final Score',
+        'Exams Current Score',
+        'Exams Unposted Current Score',
+      ],
+      practical_exercises: [
+        'Practical Exercises Final Score',
+        'Practical Exercises Unposted Final Score',
+        'Practical Exercises Current Score',
+        'Practical Exercises Unposted Current Score',
+      ],
+      class_activities: [
+        'Class Activities Final Score',
+        'Class Activities Unposted Final Score',
+        'Class Activities Current Score',
+        'Class Activities Unposted Current Score',
+      ],
+    };
+
+    const pickCategoryPct = (id: string): number | null => {
+      const candidates = categoryColumnsById[id] ?? [];
+      for (const key of candidates) {
+        const val = toNumber((record as Record<string, unknown>)[key]);
+        if (val !== null) return val;
+      }
+      // Fallback to computed percentage from assignments if CSV aggregate is missing
+      const computed = groupedAssignments.totalsById[id]?.pct;
+      return computed ?? null;
+    };
+
     const fs = toNumber(finalScore);
-    const rows = groupConfigs.map((cfg) => {
+    // Build precise contributions first
+    const precise = groupConfigs.map((cfg) => {
       const weight = groupedAssignments.weightNormalizedById[cfg.id] ?? cfg.weightPct;
-      const contrib = fs !== null ? (fs * weight) / 100 : null;
-      return { id: cfg.id, name: cfg.name, weight, contrib };
+      const catPct = pickCategoryPct(cfg.id);
+      const contribPrecise = catPct !== null ? (catPct * weight) / 100 : null;
+      return { id: cfg.id, name: cfg.name, weight, contribPrecise };
     });
-    const sum = rows.reduce((a, r) => a + (r.contrib ?? 0), 0);
-    return { rows, sum: fs !== null ? fs : sum } as const;
-  }, [groupConfigs, groupedAssignments.weightNormalizedById, finalScore]);
+
+    // Round contributions to at most 2 decimals for display
+    const rows = precise.map((r) => ({
+      id: r.id,
+      name: r.name,
+      weight: r.weight,
+      contrib: r.contribPrecise !== null ? round2(r.contribPrecise) : null,
+    }));
+
+    // Ensure displayed contributions sum to Final Score when provided
+    const fsRounded = fs !== null ? round2(fs) : null;
+    if (fsRounded !== null) {
+      const nonNullIdx = rows.map((r, i) => (r.contrib !== null ? i : -1)).filter((i) => i >= 0);
+      if (nonNullIdx.length > 0) {
+        const currentSum = round2(rows.reduce((a, r) => a + (r.contrib ?? 0), 0));
+        const diff = round2(fsRounded - currentSum);
+        if (diff !== 0) {
+          const idxToAdjust = nonNullIdx[nonNullIdx.length - 1];
+          rows[idxToAdjust] = {
+            ...rows[idxToAdjust],
+            contrib: round2((rows[idxToAdjust].contrib ?? 0) + diff),
+          };
+        }
+      }
+    }
+
+    const computedSum = round2(rows.reduce((a, r) => a + (r.contrib ?? 0), 0));
+    return { rows, sum: fsRounded !== null ? fsRounded : computedSum } as const;
+  }, [
+    groupConfigs,
+    groupedAssignments.weightNormalizedById,
+    groupedAssignments.totalsById,
+    record,
+    finalScore,
+  ]);
 
   return (
     <div>
       <div className="detail-head">
         <div className="detail-left">
-          <div className="header-row">
-            <h1>{fullName}</h1>
+          <div className="student-name-section">
+            <div className="name-and-status">
+              <h1>{fullName}</h1>
+              {finalGrade && (
+                <div
+                  className={`pass-fail-status ${Number(finalGrade) >= 1.0 ? 'passed' : 'failed'} ${concealClass}`}
+                >
+                  {Number(finalGrade) >= 1.0 ? 'PASSED' : 'FAILED'}
+                </div>
+              )}
+            </div>
+            {email && <div className="student-email">{email}</div>}
             <button
-              className="btn"
+              className="btn btn-sm"
               onClick={() =>
                 setShowScores((s) => {
                   const v = !s;
@@ -741,11 +870,15 @@ function StudentDetail({
                 {contributionRows.rows.map((r) => (
                   <tr key={r.id}>
                     <td className="muted" style={{ textAlign: 'left' }}>
+                      <span
+                        className="cat-dot"
+                        style={{ backgroundColor: categoryColorById[r.id] ?? 'var(--muted)' }}
+                      />
                       {r.name}
                     </td>
                     <td>{r.weight.toFixed(0)}%</td>
                     <td className={`${concealClass}`}>
-                      {r.contrib !== null ? r.contrib.toFixed(1) + '%' : '—'}
+                      {r.contrib !== null ? `${format2(r.contrib)}%` : '—'}
                     </td>
                   </tr>
                 ))}
@@ -753,8 +886,8 @@ function StudentDetail({
             </table>
           </div>
           <footer>
-            <span className="muted">Sum</span>
-            <strong className={`${concealClass}`}>{contributionRows.sum.toFixed(1)}%</strong>
+            <span className="muted">Final Score</span>
+            <strong className={`${concealClass}`}>{`${format2(contributionRows.sum)}%`}</strong>
           </footer>
         </div>
       </div>
@@ -779,28 +912,38 @@ function StudentDetail({
         };
         return (
           <div key={groupId} style={{ marginBottom: 20 }}>
-            <div className="header-row" style={{ marginTop: 8 }}>
+            <button
+              className="category-header-btn"
+              onClick={() => setOpen((v) => !v)}
+              aria-label={open ? 'Collapse' : 'Expand'}
+              style={{
+                marginTop: 8,
+                backgroundColor: `color-mix(in srgb, ${categoryColorById[groupId] ?? 'var(--muted)'} 8%, var(--panel-elevated))`,
+              }}
+            >
               <div className="header-title">
-                <button
-                  className="btn btn-sm"
-                  onClick={() => setOpen((v) => !v)}
-                  aria-label={open ? 'Collapse' : 'Expand'}
-                >
+                <div className="expand-icon">
                   {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-                </button>
-                <h2 style={{ margin: 0, fontSize: 16 }}>{label}</h2>
+                </div>
+                <h2 style={{ margin: 0, fontSize: 16 }}>
+                  <span
+                    className="cat-dot"
+                    style={{ backgroundColor: categoryColorById[groupId] ?? 'var(--muted)' }}
+                  />
+                  {label}
+                </h2>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {totals && (
                   <div className={`pill ${concealClass}`}>
-                    {totals.pct !== null ? `${totals.pct.toFixed(1)}%` : '—'}
+                    {totals.pct !== null ? `${formatUpTo2(totals.pct)}%` : '—'}
                   </div>
                 )}
                 <div className={`pill ${concealClass}`}>
-                  contrib: {contribution !== null ? `${contribution.toFixed(1)}%` : '—'}
+                  contrib: {contribution !== null ? `${format2(contribution)}%` : '—'}
                 </div>
               </div>
-            </div>
+            </button>
             {open && (
               <div className="grid">
                 <div className="table-wrap">
