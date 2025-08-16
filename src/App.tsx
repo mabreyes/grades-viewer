@@ -707,12 +707,6 @@ export default function App(): JSX.Element {
           </div>
         </aside>
         <main className="content">
-          {consultationMode && (
-            <div className="consultation-mode-indicator">
-              <SecurityIcon fontSize="small" />
-              CONSULTATION MODE ACTIVE
-            </div>
-          )}
           {state.status === 'loading' && (
             <div style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
               <CircularProgress />
