@@ -27,6 +27,7 @@ import Brightness6Icon from '@mui/icons-material/Brightness6';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SecurityIcon from '@mui/icons-material/Security';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import WarningIcon from '@mui/icons-material/Warning';
 import { CsvRow, PointsPossibleMap, StudentIndexItem } from './types';
 
@@ -105,6 +106,14 @@ export default function App(): JSX.Element {
   const [consultationShowScores, setConsultationShowScores] = useState<boolean>(() =>
     readBooleanPreference('consultationShowScores', false)
   );
+
+  // Dialog states
+  const [exitConsultationDialog, setExitConsultationDialog] = useState(false);
+  const [enterConsultationDialog, setEnterConsultationDialog] = useState(false);
+  const [autoHideScoresDialog, setAutoHideScoresDialog] = useState(false);
+  const [navigationWarningDialog, setNavigationWarningDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { studentId } = useParams();
@@ -415,19 +424,17 @@ export default function App(): JSX.Element {
 
     const handlePopState = (e: PopStateEvent) => {
       if (consultationMode) {
-        const confirmed = window.confirm(
-          'You are in consultation mode. Navigating away will exit consultation mode. Continue?'
-        );
-        if (!confirmed) {
-          e.preventDefault();
-          // Push current state back
-          window.history.pushState(null, '', window.location.href);
-        } else {
+        e.preventDefault();
+        // Push current state back to prevent navigation
+        window.history.pushState(null, '', window.location.href);
+        // Show dialog
+        setNavigationWarningDialog(true);
+        setPendingNavigation(() => () => {
           setConsultationMode(false);
           try {
             localStorage.setItem('consultationMode', 'false');
           } catch {}
-        }
+        });
       }
     };
 
@@ -577,46 +584,9 @@ export default function App(): JSX.Element {
                 color={consultationMode ? 'warning' : 'inherit'}
                 onClick={() => {
                   if (consultationMode) {
-                    // Confirm exit
-                    const confirmed = window.confirm(
-                      'Exit consultation mode? This will re-enable search and navigation.'
-                    );
-                    if (confirmed) {
-                      setConsultationMode(false);
-                      setQuery(''); // Clear any search
-                      try {
-                        localStorage.setItem('consultationMode', 'false');
-                      } catch {}
-                    }
+                    setExitConsultationDialog(true);
                   } else {
-                    // Confirm enter with warning
-                    const confirmed = window.confirm(
-                      'Enable consultation mode?\n\n' +
-                        'This will:\n' +
-                        '• Require confirmation to switch students\n' +
-                        '• Disable search functionality\n' +
-                        '• Block navigation shortcuts\n' +
-                        '• Warn before leaving the page\n\n' +
-                        'Use this during student consultations for privacy protection.'
-                    );
-                    if (confirmed) {
-                      setConsultationMode(true);
-                      setQuery(''); // Clear search
-                      // Auto-hide scores for privacy when entering consultation mode
-                      const autoHide = window.confirm(
-                        'Hide all scores automatically for privacy protection?\n\n' +
-                          'This is recommended for student consultations. You can show them manually when needed.'
-                      );
-                      if (autoHide) {
-                        setConsultationShowScores(false);
-                        try {
-                          localStorage.setItem('consultationShowScores', 'false');
-                        } catch {}
-                      }
-                      try {
-                        localStorage.setItem('consultationMode', 'true');
-                      } catch {}
-                    }
+                    setEnterConsultationDialog(true);
                   }
                 }}
               >
@@ -763,6 +733,194 @@ export default function App(): JSX.Element {
       </div>
 
       {/* Student Switch Confirmation Dialog */}
+      {/* Exit Consultation Mode Dialog */}
+      <Dialog
+        open={exitConsultationDialog}
+        onClose={() => setExitConsultationDialog(false)}
+        aria-labelledby="exit-consultation-dialog-title"
+        aria-describedby="exit-consultation-dialog-description"
+      >
+        <DialogTitle id="exit-consultation-dialog-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SecurityIcon color="warning" />
+            Exit Consultation Mode?
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="exit-consultation-dialog-description">
+            This will re-enable search and navigation features.
+            <br />
+            <br />
+            Are you sure you want to exit consultation mode?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExitConsultationDialog(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setConsultationMode(false);
+              setQuery('');
+              setExitConsultationDialog(false);
+              try {
+                localStorage.setItem('consultationMode', 'false');
+              } catch {}
+            }}
+            color="primary"
+            variant="contained"
+            autoFocus
+          >
+            Exit Consultation
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Enter Consultation Mode Dialog */}
+      <Dialog
+        open={enterConsultationDialog}
+        onClose={() => setEnterConsultationDialog(false)}
+        aria-labelledby="enter-consultation-dialog-title"
+        aria-describedby="enter-consultation-dialog-description"
+      >
+        <DialogTitle id="enter-consultation-dialog-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SecurityIcon color="warning" />
+            Enable Consultation Mode?
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="enter-consultation-dialog-description">
+            This will enable privacy protection features:
+            <br />
+            <br />
+            • Require confirmation to switch students
+            <br />
+            • Disable search functionality
+            <br />
+            • Block navigation shortcuts
+            <br />
+            • Warn before leaving the page
+            <br />
+            <br />
+            Use this during student consultations for privacy protection.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEnterConsultationDialog(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setConsultationMode(true);
+              setQuery('');
+              setEnterConsultationDialog(false);
+              // Show auto-hide scores dialog
+              setAutoHideScoresDialog(true);
+              try {
+                localStorage.setItem('consultationMode', 'true');
+              } catch {}
+            }}
+            color="primary"
+            variant="contained"
+            autoFocus
+          >
+            Enable Consultation
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Auto-hide Scores Dialog */}
+      <Dialog
+        open={autoHideScoresDialog}
+        onClose={() => setAutoHideScoresDialog(false)}
+        aria-labelledby="auto-hide-dialog-title"
+        aria-describedby="auto-hide-dialog-description"
+      >
+        <DialogTitle id="auto-hide-dialog-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <VisibilityOffIcon color="info" />
+            Hide Scores for Privacy?
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="auto-hide-dialog-description">
+            Hide all scores automatically for privacy protection?
+            <br />
+            <br />
+            This is recommended for student consultations. You can show them manually when needed.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAutoHideScoresDialog(false)} color="inherit">
+            Keep Visible
+          </Button>
+          <Button
+            onClick={() => {
+              setConsultationShowScores(false);
+              setAutoHideScoresDialog(false);
+              try {
+                localStorage.setItem('consultationShowScores', 'false');
+              } catch {}
+            }}
+            color="primary"
+            variant="contained"
+            autoFocus
+          >
+            Hide Scores
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Navigation Warning Dialog (Consultation Mode) */}
+      <Dialog
+        open={navigationWarningDialog}
+        onClose={() => setNavigationWarningDialog(false)}
+        aria-labelledby="nav-warning-dialog-title"
+        aria-describedby="nav-warning-dialog-description"
+      >
+        <DialogTitle id="nav-warning-dialog-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WarningIcon color="warning" />
+            Leave Consultation Mode?
+          </div>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="nav-warning-dialog-description">
+            You are in consultation mode. Navigating away will exit consultation mode.
+            <br />
+            <br />
+            Continue?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setNavigationWarningDialog(false);
+              setPendingNavigation(null);
+            }}
+            color="inherit"
+          >
+            Stay
+          </Button>
+          <Button
+            onClick={() => {
+              if (pendingNavigation) {
+                pendingNavigation();
+              }
+              setNavigationWarningDialog(false);
+              setPendingNavigation(null);
+            }}
+            color="primary"
+            variant="contained"
+            autoFocus
+          >
+            Leave
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Student Switch Dialog (existing) */}
       <Dialog
         open={!!pendingStudentKey}
         onClose={cancelStudentSwitch}
